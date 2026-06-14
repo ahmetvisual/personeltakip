@@ -31,5 +31,8 @@ packages/
 *.bak
 *.orig
 
+# Local database credentials
+database.local.txt
+
 # Local accidental nested repository placeholder
 /personeltakip/
