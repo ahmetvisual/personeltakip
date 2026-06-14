@@ -814,6 +814,26 @@ namespace personelizintakip
             // Kalan gün sayısını label5'e yazdır
             label5.Text = $"Kalan : {remainingDays} gün";
         }
+
+        private bool ValidateIzinKaydi()
+        {
+            if (dateTimePicker5.Value.Date <= dateTimePicker4.Value.Date)
+            {
+                MessageBox.Show("Bitiş tarihi başlangıç tarihinden sonra olmalıdır.", "Geçersiz Tarih Seçimi",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            if (remainingDays <= 0)
+            {
+                MessageBox.Show("Kaydedilecek izin süresi 0 gün olamaz.", "Geçersiz İzin Süresi",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            return true;
+        }
+
         private bool CheckForOverlappingLeaves(int personelID, DateTime startDate, DateTime endDate, int? excludeIzinID = null)
         {
             using (MySqlConnection con = DatabaseHelper.GetConnection())
@@ -853,6 +873,11 @@ namespace personelizintakip
                 }
 
                 int personelID = ((dynamic)comboBox1.SelectedItem).Value;
+
+                if (!ValidateIzinKaydi())
+                {
+                    return;
+                }
 
                 // Öncelikle tarihler arasında çakışan izin var mı kontrol edelim
                 bool hasOverlap = CheckForOverlappingLeaves(personelID, dateTimePicker4.Value.Date, dateTimePicker5.Value.Date);
@@ -971,6 +996,11 @@ namespace personelizintakip
 
                 int personelID = ((dynamic)comboBox1.SelectedItem).Value;
 
+                if (!ValidateIzinKaydi())
+                {
+                    return;
+                }
+
                 // Öncelikle tarihler arasında çakışan izin var mı kontrol edelim (mevcut izin hariç)
                 bool hasOverlap = CheckForOverlappingLeaves(personelID, dateTimePicker4.Value.Date, dateTimePicker5.Value.Date, izinID.Value);
                 if (hasOverlap)
@@ -1011,7 +1041,7 @@ namespace personelizintakip
                                 }
                             }
                             // Eski izin günlerini izintablolari'ndan geri al
-                            UpdateIzinTablolari(con, transaction, personelID, eskiBaslangic, eskiBitis, Convert.ToDecimal(eskiremainingDays), false);
+                            IzinHelper.UpdateIzinTablolari(con, transaction, personelID, eskiBaslangic, eskiBitis, Convert.ToDecimal(eskiremainingDays), false);
                             // İzin kaydını güncelle
                             string query = @"UPDATE kullanilanizinler 
                                      SET BaslangicTarihi = @BaslangicTarihi, 
@@ -1058,7 +1088,7 @@ namespace personelizintakip
                             }
 
                             // Yeni izin günlerini izintablolari'na ekle
-                            UpdateIzinTablolari(con, transaction, personelID, dateTimePicker4.Value.Date, dateTimePicker5.Value.Date, Convert.ToDecimal(remainingDays), true);
+                            IzinHelper.UpdateIzinTablolari(con, transaction, personelID, dateTimePicker4.Value.Date, dateTimePicker5.Value.Date, Convert.ToDecimal(remainingDays), true);
                             transaction.Commit();
                             MessageBox.Show("İzin güncellemesi başarıyla tamamlandı.");
                         }
@@ -1283,7 +1313,7 @@ namespace personelizintakip
                         }
 
                         // izintablolari tablosunu güncelliyoruz
-                        UpdateIzinTablolari(con, transaction, personelID, baslangicTarihi.Date, bitisTarihi.Date, toplam, true);
+                        IzinHelper.UpdateIzinTablolari(con, transaction, personelID, baslangicTarihi.Date, bitisTarihi.Date, toplam, true);
 
                         transaction.Commit();
                     }

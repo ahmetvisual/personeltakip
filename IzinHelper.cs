@@ -103,55 +103,57 @@ public static class IzinHelper
         }
         // Güncelleme algoritmasını çalıştır
         izinTabloList = izinTabloList.OrderBy(x => x.BaslangicTarihi).ToList();
-        decimal totalKalanGun = kalanGun;
-        decimal previousDevreden = 0;
+        decimal totalKalanGun = kalanGun < 0 ? 0 : kalanGun;
         for (int i = 0; i < izinTabloList.Count; i++)
         {
             var currentRecord = izinTabloList[i];
             DateTime overlapStart = baslangicTarihi > currentRecord.BaslangicTarihi ? baslangicTarihi : currentRecord.BaslangicTarihi;
             DateTime overlapEnd = bitisTarihi < currentRecord.BitisTarihi ? bitisTarihi : currentRecord.BitisTarihi;
-            if (overlapStart <= overlapEnd)
+            if (overlapStart < overlapEnd && totalKalanGun > 0)
             {
-                decimal daysInThisRecord = (decimal)(overlapEnd - overlapStart).TotalDays + 1;
+                decimal daysInThisRecord = (decimal)(overlapEnd - overlapStart).TotalDays;
                 if (totalKalanGun < daysInThisRecord)
                     daysInThisRecord = totalKalanGun;
-                decimal yeniKulHak = currentRecord.KulHak;
-                decimal yeniDevreden = currentRecord.Devreden;
                 if (isAdding)
                 {
-                    yeniKulHak += daysInThisRecord;
+                    currentRecord.KulHak += daysInThisRecord;
                 }
                 else
                 {
-                    yeniKulHak -= daysInThisRecord;
+                    currentRecord.KulHak -= daysInThisRecord;
+                    if (currentRecord.KulHak < 0)
+                        currentRecord.KulHak = 0;
                 }
-                yeniDevreden = currentRecord.YillikHak - yeniKulHak + currentRecord.DevirAlinan;
-                string updateQuery = @"UPDATE izintablolari 
-                                     SET KulHak = @KulHak, 
-                                         Devreden = @Devreden 
-                                     WHERE PersonelID = @PersonelID AND BaslangicTarihi = @BaslangicTarihi";
-                MySqlCommand updateCmd = new MySqlCommand(updateQuery, con, transaction);
-                updateCmd.Parameters.AddWithValue("@KulHak", yeniKulHak);
-                updateCmd.Parameters.AddWithValue("@Devreden", yeniDevreden);
-                updateCmd.Parameters.AddWithValue("@PersonelID", personelID);
-                updateCmd.Parameters.AddWithValue("@BaslangicTarihi", currentRecord.BaslangicTarihi);
-                updateCmd.ExecuteNonQuery();
-                previousDevreden = yeniDevreden;
                 totalKalanGun -= daysInThisRecord;
-                if (totalKalanGun <= 0)
-                    break;
             }
-            else if (currentRecord.BaslangicTarihi > bitisTarihi)
+        }
+
+        decimal previousDevreden = 0;
+        for (int i = 0; i < izinTabloList.Count; i++)
+        {
+            var currentRecord = izinTabloList[i];
+
+            if (i > 0)
             {
-                string updateQuery = @"UPDATE izintablolari 
-                                     SET DevirAlinan = @DevirAlinan 
-                                     WHERE PersonelID = @PersonelID AND BaslangicTarihi = @BaslangicTarihi";
-                MySqlCommand updateCmd = new MySqlCommand(updateQuery, con, transaction);
-                updateCmd.Parameters.AddWithValue("@DevirAlinan", previousDevreden);
-                updateCmd.Parameters.AddWithValue("@PersonelID", personelID);
-                updateCmd.Parameters.AddWithValue("@BaslangicTarihi", currentRecord.BaslangicTarihi);
-                updateCmd.ExecuteNonQuery();
+                currentRecord.DevirAlinan = previousDevreden;
             }
+
+            currentRecord.Devreden = currentRecord.DevirAlinan + currentRecord.YillikHak - currentRecord.KulHak;
+
+            string updateQuery = @"UPDATE izintablolari
+                                 SET KulHak = @KulHak,
+                                     DevirAlinan = @DevirAlinan,
+                                     Devreden = @Devreden
+                                 WHERE PersonelID = @PersonelID AND BaslangicTarihi = @BaslangicTarihi";
+            MySqlCommand updateCmd = new MySqlCommand(updateQuery, con, transaction);
+            updateCmd.Parameters.AddWithValue("@KulHak", currentRecord.KulHak);
+            updateCmd.Parameters.AddWithValue("@DevirAlinan", currentRecord.DevirAlinan);
+            updateCmd.Parameters.AddWithValue("@Devreden", currentRecord.Devreden);
+            updateCmd.Parameters.AddWithValue("@PersonelID", personelID);
+            updateCmd.Parameters.AddWithValue("@BaslangicTarihi", currentRecord.BaslangicTarihi);
+            updateCmd.ExecuteNonQuery();
+
+            previousDevreden = currentRecord.Devreden;
         }
     }
 

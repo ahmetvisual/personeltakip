@@ -112,20 +112,11 @@ namespace personelizintakip
             {
                 // Seçilen izin ID'sini al
                 int izinID = Convert.ToInt32(dataGridView3.Rows[e.RowIndex].Cells["ID"].Value);
+                int personelID = Convert.ToInt32(dataGridView3.Rows[e.RowIndex].Cells["PersonelID"].Value);
 
-                // Seçili personel ID'sini al
-                if (dataGridView1.SelectedRows.Count > 0)
-                {
-                    int personelID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["ID"].Value);
-
-                    // izinbelgesi formunu güncelleme modu için aç
-                    izinbelgesi izinForm = new izinbelgesi(personelID, izinID);
-                    izinForm.ShowDialog();
-                }
-                else
-                {
-                    MessageBox.Show("Lütfen bir personel seçiniz.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
+                // izinbelgesi formunu güncelleme modu için aç
+                izinbelgesi izinForm = new izinbelgesi(personelID, izinID);
+                izinForm.ShowDialog();
             }
         }
         private void TextBox1_TextChanged(object sender, EventArgs e)
@@ -344,7 +335,7 @@ namespace personelizintakip
                 using (MySqlConnection con = DatabaseHelper.GetConnection())
                 {
                     con.Open();
-                    string query = @"SELECT ID, BaslangicTarihi, BitisTarihi, BelgeNo, izinturu, Toplam, Aciklama 
+                    string query = @"SELECT ID, PersonelID, BaslangicTarihi, BitisTarihi, BelgeNo, izinturu, Toplam, Aciklama
                              FROM kullanilanizinler 
                              WHERE PersonelID = @PersonelID
                              ORDER BY BaslangicTarihi ASC"; // Sıralama eklendi
@@ -358,6 +349,10 @@ namespace personelizintakip
                     dataGridView3.DataSource = dt;
 
                     dataGridView3.Columns["ID"].Visible = false;
+                    if (dataGridView3.Columns.Contains("PersonelID"))
+                    {
+                        dataGridView3.Columns["PersonelID"].Visible = false;
+                    }
 
                     // Diğer sütunları ayarla
                     for (int i = 0; i < dataGridView3.Columns.Count - 1; i++)
@@ -834,7 +829,7 @@ namespace personelizintakip
             if (dataGridView3.SelectedRows.Count > 0)
             {
                 int izinID = Convert.ToInt32(dataGridView3.SelectedRows[0].Cells["ID"].Value);
-                int personelID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["ID"].Value);
+                int personelID = 0;
 
                 DialogResult result = MessageBox.Show("Bu izin kaydını silmek istediğinizden emin misiniz?",
                                                       "İzin Silme", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
@@ -851,7 +846,7 @@ namespace personelizintakip
                                 try
                                 {
                                     // 1. Silinecek izin kaydının bilgilerini al
-                                    string getIzinQuery = @"SELECT BaslangicTarihi, BitisTarihi, Toplam 
+                                    string getIzinQuery = @"SELECT PersonelID, BaslangicTarihi, BitisTarihi, Toplam
                                                   FROM kullanilanizinler 
                                                   WHERE ID = @IzinID";
                                     MySqlCommand getIzinCmd = new MySqlCommand(getIzinQuery, con, transaction);
@@ -865,10 +860,19 @@ namespace personelizintakip
                                     {
                                         if (reader.Read())
                                         {
+                                            personelID = reader.GetInt32("PersonelID");
                                             baslangicTarihi = reader.GetDateTime("BaslangicTarihi");
                                             bitisTarihi = reader.GetDateTime("BitisTarihi");
                                             toplamGun = reader.GetDecimal("Toplam");
                                         }
+                                    }
+
+                                    if (personelID == 0)
+                                    {
+                                        MessageBox.Show("Silinecek izin kaydı bulunamadı.", "Hata",
+                                                      MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                        transaction.Rollback();
+                                        return;
                                     }
 
                                     // 2. İzin tablolarını güncelle (izni çıkar)

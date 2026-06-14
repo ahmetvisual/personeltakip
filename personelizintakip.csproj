@@ -18,11 +18,14 @@
 		<InformationalVersion>$(VersionPrefix)</InformationalVersion>
 	</PropertyGroup>
 
-	<ItemGroup>
+  <ItemGroup>
+    <Compile Remove="personeltakip\**" />
     <Compile Remove="Report\**" />
     <Compile Remove="wpf barkod\**" />
+    <EmbeddedResource Remove="personeltakip\**" />
     <EmbeddedResource Remove="Report\**" />
     <EmbeddedResource Remove="wpf barkod\**" />
+    <None Remove="personeltakip\**" />
     <None Remove="Report\**" />
     <None Remove="wpf barkod\**" />
   </ItemGroup>
